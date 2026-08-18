@@ -1,0 +1,155 @@
+{%- comment -%}
+  ============================================================
+  CART OFFER PROGRESS â€” 3 tracked rewards
+  ============================================================
+  1. Gift Box + Soft Toy free on Rs. 2,000+ spend
+  2. 3 T-shirts for Rs. 1,199 (quantity-based)
+  3. Buy 3 Sleepwear, Get 1 Free (quantity-based)
+
+  All three track automatically from cart contents. The
+  underlying discounts (bundle price, BOGO) must already exist
+  as Shopify Automatic Discounts in Admin > Discounts â€” this
+  snippet only displays progress toward them, it does not
+  create or apply the discounts itself.
+
+  EDIT THESE VALUES to change thresholds/labels/variant IDs:
+  ============================================================
+{%- endcomment -%}
+
+{%- assign free_gift_variant_id = 54644307886359 -%}
+{%- assign premium_gift_box_variant_id = 54684641886487 -%}
+{%- assign gift_box_threshold = 200000 -%}{%- comment -%}Rs. 2,000 in paise/cents{%- endcomment -%}
+
+{%- assign tshirt_collection_handle = 't-shirt' -%}
+{%- assign tshirt_bundle_target = 3 -%}
+{%- assign tshirt_bundle_price = 1199 -%}
+
+{%- assign sleepwear_collection_handle = 'sleepwear' -%}
+{%- assign sleepwear_bundle_target = 4 -%}
+
+{%- comment -%} ---------- Gift box: value-based total (excludes gift/addon items) ---------- {%- endcomment -%}
+{%- assign gift_box_total = 0 -%}
+{%- assign tshirt_qty = 0 -%}
+{%- assign sleepwear_qty = 0 -%}
+{%- assign sleepwear_has_items = false -%}
+
+{%- for line_item in cart.items -%}
+  {%- assign is_addon = false -%}
+  {%- if line_item.variant_id == free_gift_variant_id or line_item.variant_id == premium_gift_box_variant_id -%}
+    {%- assign is_addon = true -%}
+  {%- endif -%}
+
+  {%- unless is_addon -%}
+    {%- assign gift_box_total = gift_box_total | plus: line_item.final_line_price -%}
+
+    {%- assign in_tshirt_collection = false -%}
+    {%- assign in_sleepwear_collection = false -%}
+    {%- for collection in line_item.product.collections -%}
+      {%- if collection.handle == tshirt_collection_handle -%}
+        {%- assign in_tshirt_collection = true -%}
+      {%- endif -%}
+      {%- if collection.handle == sleepwear_collection_handle -%}
+        {%- assign in_sleepwear_collection = true -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {%- if in_tshirt_collection -%}
+      {%- assign tshirt_qty = tshirt_qty | plus: line_item.quantity -%}
+    {%- endif -%}
+    {%- if in_sleepwear_collection -%}
+      {%- assign sleepwear_qty = sleepwear_qty | plus: line_item.quantity -%}
+      {%- assign sleepwear_has_items = true -%}
+    {%- endif -%}
+  {%- endunless -%}
+{%- endfor -%}
+
+{%- assign gift_box_unlocked = false -%}
+{%- if gift_box_total >= gift_box_threshold -%}
+  {%- assign gift_box_unlocked = true -%}
+{%- endif -%}
+{%- assign gift_box_percent = gift_box_total | times: 100 | divided_by: gift_box_threshold -%}
+{%- if gift_box_percent > 100 -%}{%- assign gift_box_percent = 100 -%}{%- endif -%}
+{%- assign gift_box_remaining = gift_box_threshold | minus: gift_box_total -%}
+
+{%- assign tshirt_unlocked = false -%}
+{%- if tshirt_qty >= tshirt_bundle_target -%}
+  {%- assign tshirt_unlocked = true -%}
+{%- endif -%}
+{%- assign tshirt_percent = tshirt_qty | times: 100 | divided_by: tshirt_bundle_target -%}
+{%- if tshirt_percent > 100 -%}{%- assign tshirt_percent = 100 -%}{%- endif -%}
+{%- assign tshirt_remaining = tshirt_bundle_target | minus: tshirt_qty -%}
+
+{%- assign sleepwear_unlocked = false -%}
+{%- if sleepwear_qty >= sleepwear_bundle_target -%}
+  {%- assign sleepwear_unlocked = true -%}
+{%- endif -%}
+{%- assign sleepwear_percent = sleepwear_qty | times: 100 | divided_by: sleepwear_bundle_target -%}
+{%- if sleepwear_percent > 100 -%}{%- assign sleepwear_percent = 100 -%}{%- endif -%}
+{%- assign sleepwear_remaining = sleepwear_bundle_target | minus: sleepwear_qty -%}
+
+<div class="CartOfferProgress" data-cart-offer-progress>
+
+  {%- comment -%} ---------- Row 1: Gift Box + Soft Toy (always shown) ---------- {%- endcomment -%}
+  <div class="CartOfferProgress__Row {% if gift_box_unlocked %}is-unlocked{% endif %}">
+    {%- if gift_box_unlocked -%}
+      <p class="CartOfferProgress__RowText CartOfferProgress__RowText--unlocked" aria-live="polite">
+        {%- render 'icon' with 'check' -%} Free Gift Box + Soft Toy unlocked!
+      </p>
+    {%- else -%}
+      <div class="CartOfferProgress__RowHeader">
+        <p class="CartOfferProgress__RowText" aria-live="polite">
+          <span data-cart-gift-remaining>{{ gift_box_remaining | money }}</span> more for a free Gift Box + Soft Toy
+        </p>
+        <span class="CartOfferProgress__RowCount">{{ gift_box_total | money }} of {{ gift_box_threshold | money }}</span>
+      </div>
+      <div class="CartOfferProgress__Bar" role="progressbar" aria-label="Gift box progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ gift_box_percent }}">
+        <span class="CartOfferProgress__Fill" style="width:{{ gift_box_percent }}%;"></span>
+      </div>
+    {%- endif -%}
+  </div>
+
+  {%- comment -%} ---------- Row 2: T-shirt bundle (only if cart has a t-shirt) ---------- {%- endcomment -%}
+  {%- if tshirt_qty > 0 -%}
+    <div class="CartOfferProgress__Row {% if tshirt_unlocked %}is-unlocked{% endif %}">
+      {%- if tshirt_unlocked -%}
+        <p class="CartOfferProgress__RowText CartOfferProgress__RowText--unlocked" aria-live="polite">
+          {%- render 'icon' with 'check' -%} 3 T-shirts for Rs. {{ tshirt_bundle_price }} unlocked
+        </p>
+      {%- else -%}
+        <div class="CartOfferProgress__RowHeader">
+          <p class="CartOfferProgress__RowText" aria-live="polite">
+            Add {{ tshirt_remaining }} more T-shirt{% if tshirt_remaining != 1 %}s{% endif %} for 3 @ Rs. {{ tshirt_bundle_price }}
+          </p>
+          <span class="CartOfferProgress__RowCount">{{ tshirt_qty }} of {{ tshirt_bundle_target }}</span>
+        </div>
+        <div class="CartOfferProgress__Bar" role="progressbar" aria-label="T-shirt bundle progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ tshirt_percent }}">
+          <span class="CartOfferProgress__Fill" style="width:{{ tshirt_percent }}%;"></span>
+        </div>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+  {%- comment -%} ---------- Row 3: Sleepwear BOGO (only if cart has at least one sleepwear item) ---------- {%- endcomment -%}
+  {%- if sleepwear_has_items -%}
+    <div class="CartOfferProgress__Row CartOfferProgress__Row--sleepwear{% if sleepwear_unlocked %} is-unlocked{% endif %}">
+      {%- if sleepwear_unlocked -%}
+        <div class="CartOfferProgress__RowHeader">
+          <p class="CartOfferProgress__RowText CartOfferProgress__RowText--unlocked" aria-live="polite">
+             Congratulations! You've unlocked your free Sleepwear! 
+          </p>
+        </div>
+      {%- else -%}
+        <div class="CartOfferProgress__RowHeader">
+          <p class="CartOfferProgress__RowText" aria-live="polite">
+            Add {{ sleepwear_remaining }} more Sleepwear to unlock 3+1 Free Offer
+          </p>
+          <span class="CartOfferProgress__RowCount">{{ sleepwear_qty }} of {{ sleepwear_bundle_target }}</span>
+        </div>
+        <div class="CartOfferProgress__Bar" role="progressbar" aria-label="Sleepwear bundle progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ sleepwear_percent }}">
+          <span class="CartOfferProgress__Fill" style="width:{{ sleepwear_percent }}%;"></span>
+        </div>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+
+</div>

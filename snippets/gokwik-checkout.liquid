@@ -1,0 +1,54 @@
+{% if settings.goEnable %}
+{%- comment -%}
+  FIX: Once a real Shopify discount (Function, Script, or automatic discount)
+  is applied to the free-gift variants, cart.total_price already reflects
+  the correct amount. No manual subtraction needed.
+
+  Only keep the premium-gift-box conditional logic below IF that gift box
+  is NOT covered by the same automatic discount (i.e. its "free" status
+  depends on order threshold, not a blanket discount).
+{%- endcomment -%}
+
+{%- assign cart_total_for_display = cart.total_price -%}
+
+{%- assign free_gift_variant_id = 54684641886487 -%}
+{%- comment -%}
+  If "Premium Gift Box" free-on-threshold is NOT handled by a real Shopify
+  discount, keep this block. Otherwise delete it too.
+{%- endcomment -%}
+{%- assign premium_gift_box_variant_id = 54540457804055 -%}
+{%- assign premium_gift_box_threshold = 200000 -%}
+{%- assign premium_gift_box_total = 0 -%}
+{%- assign premium_gift_box_qualifying_total = cart.total_price -%}
+
+{%- for item in cart.items -%}
+  {%- assign item_title_lower = item.product.title | downcase | strip -%}
+  {%- if item.variant_id == free_gift_variant_id -%}
+    {%- assign cart_total_for_display = cart_total_for_display | minus: item.final_line_price -%}
+    {%- assign premium_gift_box_qualifying_total = premium_gift_box_qualifying_total | minus: item.final_line_price -%}
+  {%- endif -%}
+  {%- if item.variant_id == premium_gift_box_variant_id or item_title_lower == 'gift box' or item_title_lower == 'premium gift box' -%}
+    {%- assign premium_gift_box_total = premium_gift_box_total | plus: item.final_line_price -%}
+    {%- assign premium_gift_box_qualifying_total = premium_gift_box_qualifying_total | minus: item.final_line_price -%}
+  {%- endif -%}
+{%- endfor -%}
+
+{%- if premium_gift_box_qualifying_total >= premium_gift_box_threshold -%}
+  {%- assign cart_total_for_display = cart_total_for_display | minus: premium_gift_box_total -%}
+{%- endif -%}
+
+<div class="gokwik-checkout"{% if settings.hideFlow %} style="display:none !important;" {% endif %}>
+  <button type='button' class="button disabled" disabled onclick="onCheckoutClick(this)">
+    <span class="btn-text">
+      <span>{{ settings.main-titile }}
+        {% if show_price %}
+          <span style="padding-left:10px;" class="Button__SeparatorDot"></span>
+          <span>{{ cart_total_for_display | money_with_currency }}</span>
+        {% endif %}
+      </span>
+      <span>{{ settings.sub-titile }}</span>
+    </span>
+    <div style="display:none" class="addloadr" id="btn-loader"><div class="cir-loader">Loading..</div></div>
+  </button>
+</div>
+{% endif %}
